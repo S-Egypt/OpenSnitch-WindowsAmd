@@ -1,4 +1,5 @@
 name: Build status
+
 on:
   push:
     paths:
@@ -13,8 +14,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build
+  build-daemon:  # Existing job for building the Go daemon
+    name: Build Daemon
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go 1.21.13
@@ -47,3 +48,39 @@ jobs:
         run: |
           cd daemon
           sudo PRIVILEGED_TESTS=1 NETLINK_TESTS=1 go test ./...
+
+  build-windows:  # New job for building the Windows executable
+    name: Build Windows Executable
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        shell: pwsh
+        run: |
+          # Install Go
+          choco install golang --version=1.21.5 -y --force
+          $env:PATH += ";$env:GOROOT\bin;$env:GOPATH\bin"
+
+          # Install Make
+          choco install make -y --force
+
+          # Install Git (required for some dependencies)
+          choco install git -y --force
+
+          # Verify installations
+          go version
+          make --version
+          git --version
+
+      - name: Build OpenSnitch
+        shell: pwsh
+        run: |
+          make build-windows-amd64
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: opensnitch-windows-amd64
+          path: bin/windows_amd64/opensnitch.exe
